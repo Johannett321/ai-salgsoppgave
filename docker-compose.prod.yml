@@ -1,9 +1,13 @@
-# Produksjonsoppsett. Kjører ferdigbygde bilder fra ECR i stedet for å bygge
-# fra kildekode, og rulles ut av .github/workflows/production-release.yml.
+# Utgangspunkt for drift på egen server. Kjører ferdigbygde bilder i stedet for å
+# bygge fra kildekode.
+#
+# Det følger ingen CI/CD med prosjektet – du må bygge og publisere bildene selv.
+# Et hvilket som helst container-register virker.
+#
+#   export IMAGE_REGISTRY=ghcr.io/<brukernavn>
+#   docker compose -f docker-compose.prod.yml up -d
 #
 # For lokal kjøring, bruk docker-compose.yml i stedet.
-#
-#   docker compose -f docker-compose.prod.yml up -d
 
 services:
   postgres:
@@ -26,7 +30,7 @@ services:
       retries: 20
 
   backend:
-    image: ${ECR_REGISTRY}/backend:latest
+    image: ${IMAGE_REGISTRY}/backend:latest
     container_name: backend
     restart: unless-stopped
     depends_on:
@@ -58,7 +62,7 @@ services:
       - /data/files:/data
 
   frontend:
-    image: ${ECR_REGISTRY}/frontend:latest
+    image: ${IMAGE_REGISTRY}/frontend:latest
     container_name: frontend
     restart: unless-stopped
     depends_on:

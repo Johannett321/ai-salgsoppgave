@@ -159,7 +159,7 @@ Mer detaljert gjennomgang – sikkerhet, persistens og API – finnes i
 | Språkmodell | Anthropic Claude (chat), OpenAI `text-embedding-3-small` (embeddings)          |
 | Frontend    | React 18, TypeScript, Create React App, Tailwind CSS, MUI, framer-motion       |
 | Innlogging  | Spring Security, skjemainnlogging + valgfri Google/Facebook OAuth2             |
-| Drift       | Docker Compose lokalt; GitHub Actions → AWS ECR → EC2 i produksjon             |
+| Drift       | Docker Compose. Ingen CI/CD følger med – se docs/ARKITEKTUR.md                 |
 
 ## Konfigurasjon
 
@@ -248,7 +248,7 @@ Sett så `BACKEND_URL` til adressen tunnelen gir deg.
 │       └── enums/               Speiler backend-enumene
 ├── docs/                        Dokumentasjon og skjermbilder
 ├── docker-compose.yml           Hele stacken lokalt
-└── docker-compose.prod.yml      Produksjon (ferdigbygde ECR-bilder)
+└── docker-compose.prod.yml      Utgangspunkt for drift på egen server
 ```
 
 ## Videre lesning

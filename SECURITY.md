@@ -48,8 +48,9 @@ Hemmeligheter skal aldri i Git.
 - `pinggy.sh` er git-ignorert fordi den inneholder et personlig token.
 - `backend/.dockerignore` sørger for at en lokal hemmelighetsfil ikke havner i et
   Docker-image.
-- I produksjon injiseres alt gjennom GitHub Actions-secrets og miljøvariabler; se
-  [`docs/ARKITEKTUR.md`](docs/ARKITEKTUR.md#produksjon).
+- Drifter du tjenesten selv, injiser alt som miljøvariabler fra plattformens
+  hemmelighetshåndtering – ikke som en fil på disk. Se
+  [`docs/ARKITEKTUR.md`](docs/ARKITEKTUR.md#på-egen-server).
 
 Har du sjekket inn en hemmelighet ved et uhell: **rull nøkkelen først**, og rydd
 deretter i historikken. Å fjerne den i en ny commit er ikke nok – den ligger fortsatt

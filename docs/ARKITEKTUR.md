@@ -254,23 +254,28 @@ eneste rutevakten i appen.
 pgvector. `docker compose up` er alt som trengs; se
 [README](../README.md#kom-i-gang).
 
-### Produksjon
+### På egen server
 
-`docker-compose.prod.yml` kjører ferdigbygde bilder fra AWS ECR. Bildene bygges og
-rulles ut til én EC2-maskin av `.github/workflows/production-release.yml` ved hver
-push til `main`.
+Det følger **ingen CI/CD med prosjektet**. Den opprinnelige GitHub Actions-flyten
+bygget bilder til AWS ECR og rullet dem ut på én EC2-maskin, men den var knyttet til
+infrastruktur som ikke finnes lenger, og er fjernet. Skal du drifte tjenesten selv,
+setter du opp din egen utrulling.
 
-Arbeidsflyten forventer disse innstillingene i GitHub-miljøet `production`:
+`docker-compose.prod.yml` ligger igjen som et utgangspunkt. Den kjører ferdigbygde
+bilder i stedet for å bygge fra kildekode, og forventer at `IMAGE_REGISTRY` peker på
+registeret ditt – et hvilket som helst container-register virker:
 
-**Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SSH_KEY`,
-`SPRING_DATASOURCE_PASSWORD`, `SPRING_MAIL_PASSWORD`, `OAUTH2_GOOGLE_CLIENT_ID`,
-`OAUTH2_GOOGLE_CLIENT_SECRET`, `OAUTH2_FACEBOOK_CLIENT_ID`,
-`OAUTH2_FACEBOOK_CLIENT_SECRET`, `MAILCHIMP_API_KEY`, `DISCORD_WEBHOOK_ERROR`,
-`DISCORD_WEBHOOK_NOTIFICATIONS`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`
+```bash
+export IMAGE_REGISTRY=ghcr.io/<brukernavn>
+docker compose -f docker-compose.prod.yml up -d
+```
 
-**Variables:** `AWS_ACCOUNT_ID`, `AWS_REGION`, `EC2_HOST`, `EC2_USER`,
-`BACKEND_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_MAIL_USERNAME`,
-`MAILCHIMP_SERVER_PREFIX`, `MAILCHIMP_LIST_ID`
+Alt av konfigurasjon injiseres som miljøvariabler. Se
+[`.env.example`](../.env.example) for hele listen; i produksjon bør de komme fra
+hemmelighetshåndteringen til plattformen din, ikke fra en fil på disk.
+
+Den enkleste veien er ofte å bare kjøre `docker-compose.yml` på serveren og bygge
+der. Da slipper du et register helt.
 
 ## Svake punkter
 
