@@ -1,0 +1,151 @@
+name: Build and Push Docker Images to ECR
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/aisalgsoppgave
+      FRONTEND_IMAGE: frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      - name: Build and push frontend image
+        run: |
+          docker build --no-cache -t $FRONTEND_IMAGE:latest ./frontend
+          docker tag $FRONTEND_IMAGE:latest $ECR_REGISTRY/$FRONTEND_IMAGE:latest
+          docker push $ECR_REGISTRY/$FRONTEND_IMAGE:latest
+
+  build-backend:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/aisalgsoppgave
+      BACKEND_IMAGE: backend
+      EC2_PUBLIC_IP: ${{ vars.EC2_HOST }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Create SSH key file
+        run: echo "${{ secrets.AWS_SSH_KEY }}" > CICD.pem
+        shell: bash
+
+      - name: Set file permissions for the SSH key
+        run: chmod 600 CICD.pem
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      - name: Build and push backend image
+        run: |
+          docker build -t $BACKEND_IMAGE:latest ./backend
+          docker tag $BACKEND_IMAGE:latest $ECR_REGISTRY/$BACKEND_IMAGE:latest
+          docker push $ECR_REGISTRY/$BACKEND_IMAGE:latest
+
+      - name: Copy docker-compose.prod.yml to EC2
+        run: |
+          scp -i CICD.pem -o StrictHostKeyChecking=no ./docker-compose.prod.yml ${{ vars.EC2_USER }}@$EC2_PUBLIC_IP:/home/ubuntu/docker-compose.prod.yml
+
+  deploy:
+    environment: PRODUCTION
+    runs-on: ubuntu-latest
+    needs: [ build-backend, build-frontend ]
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/aisalgsoppgave
+      EC2_PUBLIC_IP: ${{ vars.EC2_HOST }}
+      BACKEND_IMAGE: backend
+      FRONTEND_IMAGE: frontend
+
+    steps:
+      - name: Create SSH key file
+        run: echo "${{ secrets.AWS_SSH_KEY }}" > CICD.pem
+        shell: bash
+
+      - name: Set file permissions for the SSH key
+        run: chmod 600 CICD.pem
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy to EC2
+        run: |
+          export ECR_ACCESS_TOKEN=`aws ecr get-login-password --region $AWS_REGION`
+          ssh -i CICD.pem -o StrictHostKeyChecking=no ${{ vars.EC2_USER }}@$EC2_PUBLIC_IP <<EOF
+            echo $ECR_ACCESS_TOKEN | docker login --username AWS --password-stdin $ECR_REGISTRY
+            docker pull $ECR_REGISTRY/$FRONTEND_IMAGE:latest
+            docker pull $ECR_REGISTRY/$BACKEND_IMAGE:latest
+          
+            export ECR_REGISTRY=$ECR_REGISTRY
+
+            export SPRING_DATASOURCE_USERNAME=${{ vars.SPRING_DATASOURCE_USERNAME }}
+            export SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+            export SPRING_MAIL_PASSWORD=${{ secrets.SPRING_MAIL_PASSWORD }}
+          
+            export OAUTH2_GOOGLE_CLIENT_ID=${{ secrets.OAUTH2_GOOGLE_CLIENT_ID }}
+            export OAUTH2_GOOGLE_CLIENT_SECRET=${{ secrets.OAUTH2_GOOGLE_CLIENT_SECRET }}
+            export OAUTH2_FACEBOOK_CLIENT_ID=${{ secrets.OAUTH2_FACEBOOK_CLIENT_ID }}
+            export OAUTH2_FACEBOOK_CLIENT_SECRET=${{ secrets.OAUTH2_FACEBOOK_CLIENT_SECRET }}
+          
+            export MAILCHIMP_API_KEY=${{ secrets.MAILCHIMP_API_KEY }}
+            export MAILCHIMP_SERVER_PREFIX=${{ vars.MAILCHIMP_SERVER_PREFIX }}
+            export MAILCHIMP_LIST_ID=${{ vars.MAILCHIMP_LIST_ID }}
+          
+            export DISCORD_WEBHOOK_NOTIFICATIONS=${{ secrets.DISCORD_WEBHOOK_NOTIFICATIONS }}
+            export DISCORD_WEBHOOK_ERROR=${{ secrets.DISCORD_WEBHOOK_ERROR }}
+          
+            export BACKEND_URL=${{ vars.BACKEND_URL }}
+          
+            export SPRING_MAIL_USERNAME=${{ vars.SPRING_MAIL_USERNAME }}
+            export SPRING_MAIL_PASSWORD=${{ secrets.SPRING_MAIL_PASSWORD }}
+          
+            export ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+            export OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          
+            echo "Docker compose"
+          
+            # Run Docker containers
+            docker compose -f /home/ubuntu/docker-compose.prod.yml down
+            docker compose -f /home/ubuntu/docker-compose.prod.yml pull
+            docker compose -f /home/ubuntu/docker-compose.prod.yml up -d --force-recreate
+          EOF

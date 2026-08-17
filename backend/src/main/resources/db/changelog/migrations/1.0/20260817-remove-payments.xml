@@ -1,0 +1,48 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Fjerner betaling fra applikasjonen. Tjenesten er gratis, så abonnement,
+        Stripe-sesjoner og kvote er ikke lenger en del av datamodellen.
+
+        Rekkefølgen er viktig: subscription peker på både stripe_session og bva_user,
+        så den må slippes først.
+    -->
+
+    <changeSet id="20260817-1-drop-subscription" author="opensource">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="subscription"/>
+        </preConditions>
+        <dropTable tableName="subscription" cascadeConstraints="true"/>
+    </changeSet>
+
+    <changeSet id="20260817-2-drop-stripe-session" author="opensource">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="stripe_session"/>
+        </preConditions>
+        <dropTable tableName="stripe_session" cascadeConstraints="true"/>
+    </changeSet>
+
+    <changeSet id="20260817-3-drop-user-stripe-columns" author="opensource">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="bva_user"/>
+                <columnExists tableName="bva_user" columnName="stripe_customer_id"/>
+            </and>
+        </preConditions>
+        <dropColumn tableName="bva_user" columnName="stripe_customer_id"/>
+    </changeSet>
+
+    <changeSet id="20260817-4-drop-user-had-trial" author="opensource">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="bva_user"/>
+                <columnExists tableName="bva_user" columnName="had_trial"/>
+            </and>
+        </preConditions>
+        <dropColumn tableName="bva_user" columnName="had_trial"/>
+    </changeSet>
+
+</databaseChangeLog>

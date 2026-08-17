@@ -1,0 +1,29 @@
+# Data og opplastede filer
+data/
+
+# Hemmeligheter – skal aldri i Git.
+# Kun rot-.env; frontend/.env inneholder bare offentlige URL-er og ligger i Git.
+/.env
+**/application-secret.properties
+*.pem
+*.key
+.env.local
+.env.*.local
+
+# Personlig tunnel-skript (inneholder token). Bruk pinggy.sh.example som mal.
+pinggy.sh
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Bygg
+target/
+build/
+node_modules/

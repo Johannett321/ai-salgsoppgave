@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Åpner en offentlig tunnel til den lokale backend-en på port 8080.
+#
+# Nødvendig for at Stripe-webhooks og OAuth-redirects skal nå maskinen din under
+# utvikling. Kopier denne filen til pinggy.sh og bytt ut <DITT_PINGGY_TOKEN> med
+# ditt eget token fra https://pinggy.io – pinggy.sh er git-ignorert.
+#
+#   cp pinggy.sh.example pinggy.sh && chmod +x pinggy.sh && ./pinggy.sh
+#
+# Husk å sette backend.url i application-dev.properties til adressen du får.
+
+open http://localhost:4300
+ssh -p 443 -R0:localhost:8080 -L4300:localhost:4300 \
+    -o StrictHostKeyChecking=no \
+    -o ServerAliveInterval=30 \
+    <DITT_PINGGY_TOKEN>@a.pinggy.io

@@ -1,0 +1,85 @@
+# Hele applikasjonen lokalt: database, backend og frontend.
+#
+#   cp .env.example .env      # legg inn de to API-nøklene
+#   docker compose up
+#
+# Frontend: http://localhost:3000
+# Backend:  http://localhost:8080
+#
+# Produksjonsoppsettet ligger i docker-compose.prod.yml.
+
+services:
+  postgres:
+    image: ankane/pgvector
+    container_name: aisalgsoppgave-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aisalgsoppgavedb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Backend venter på denne, slik at Liquibase ikke kjører mot en database
+      # som ennå ikke tar imot tilkoblinger.
+      test: ["CMD-SHELL", "pg_isready -U user -d aisalgsoppgavedb"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    container_name: aisalgsoppgave-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aisalgsoppgavedb
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+      SALGSOPPGAVE_DATADIR: /data
+      BACKEND_URL: http://localhost:8080
+      ENVIRONMENT: DEV
+      # Fra .env – de eneste to som må fylles inn.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Valgfritt, se .env.example.
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OAUTH2_GOOGLE_CLIENT_ID: ${OAUTH2_GOOGLE_CLIENT_ID:-not-configured}
+      OAUTH2_GOOGLE_CLIENT_SECRET: ${OAUTH2_GOOGLE_CLIENT_SECRET:-not-configured}
+      OAUTH2_FACEBOOK_CLIENT_ID: ${OAUTH2_FACEBOOK_CLIENT_ID:-not-configured}
+      OAUTH2_FACEBOOK_CLIENT_SECRET: ${OAUTH2_FACEBOOK_CLIENT_SECRET:-not-configured}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      MAILCHIMP_API_KEY: ${MAILCHIMP_API_KEY:-}
+      MAILCHIMP_SERVER_PREFIX: ${MAILCHIMP_SERVER_PREFIX:-}
+      MAILCHIMP_LIST_ID: ${MAILCHIMP_LIST_ID:-}
+      DISCORD_WEBHOOK_ERROR: ${DISCORD_WEBHOOK_ERROR:-}
+      DISCORD_WEBHOOK_NOTIFICATIONS: ${DISCORD_WEBHOOK_NOTIFICATIONS:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - backend-files:/data
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Bakes inn i bygget: nettleseren snakker med backend, ikke containeren.
+        REACT_APP_BACKEND_URL: http://localhost:8080
+        REACT_APP_FRONTEND_URL: http://localhost:3000
+    container_name: aisalgsoppgave-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres-data:
+  backend-files:

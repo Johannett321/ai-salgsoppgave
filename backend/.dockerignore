@@ -1,0 +1,17 @@
+# Hemmeligheter skal aldri havne i et image
+application-secret.properties
+src/main/resources/application-secret.properties
+*.pem
+*.key
+
+# Byggeartefakter
+target/
+HELP.md
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store

@@ -1,0 +1,8 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow:
+/change-password
+/insufficient-quota
+/view
+/upload
+/download
